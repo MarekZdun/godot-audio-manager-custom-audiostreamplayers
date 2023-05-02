@@ -1,9 +1,9 @@
 @tool
 extends Node
 
-## Audio Manager allows you to set a pool of audio stream players associated with playing non-positioned sounds,
+## Audio Manager allows you to set a pool of custom audio stream players associated with playing non-positioned sounds,
 ## 2D sounds, 3D sounds and music sounds, and then use these audio stream players when there is a need to play a specific sound.
-## In this way, the user obtains the possibility of reusing audio stream players.
+## In this way, the user obtains the possibility of reusing custom audio stream players.
 
 enum AudioType {
 	SOUND,
@@ -69,16 +69,11 @@ var _available_sound_2d_stream_players: Array
 var _available_sound_3d_stream_players: Array
 var _available_music_stream_players: Array
 
-var _sound_stream_players_priorities: Dictionary
-var _sound_2d_stream_players_priorities: Dictionary
-var _sound_3d_stream_players_priorities: Dictionary
-
 var _sound_filenames: Array
 var _music_filenames: Array
 var _loaded_sound_streams: Dictionary
 var _loaded_music_streams: Dictionary
 
-var _stream_players_tween_volume_transition: Dictionary
 var _playing_nodes_id_access_sound_2d_stream_players: Dictionary
 var _playing_nodes_id_access_sound_3d_stream_players: Dictionary
 var _audio_bus_layout: AudioBusLayout
@@ -146,16 +141,13 @@ func play_sound(stream: AudioStream, sound_type: int, parent: Node = null,
 			if not _available_sound_stream_players.is_empty():
 				stream_player = _available_sound_stream_players.pop_front()
 			else:
-				stream_player = _check_priority_and_find_oldest(_sound_stream_players, _sound_stream_players_priorities, priority)
-			
-			if stream_player:	
-				_sound_stream_players_priorities[stream_player.get_instance_id()] = priority
+				stream_player = _check_priority_and_find_oldest(_sound_stream_players, priority)
 			
 		SoundType.POSITIONAL_2D:
 			if not _available_sound_2d_stream_players.is_empty():
 				stream_player = _available_sound_2d_stream_players.pop_front()
 			else:
-				stream_player = _check_priority_and_find_oldest(_sound_2d_stream_players, _sound_2d_stream_players_priorities, priority)
+				stream_player = _check_priority_and_find_oldest(_sound_2d_stream_players, priority)
 			
 			if stream_player:	
 				_remove_connection_tree_exiting(stream_player)
@@ -171,14 +163,12 @@ func play_sound(stream: AudioStream, sound_type: int, parent: Node = null,
 					
 					if not parent.tree_exiting.is_connected(_on_playing_node_with_sound_2d_stream_players_exiting_tree):
 						parent.tree_exiting.connect(_on_playing_node_with_sound_2d_stream_players_exiting_tree.bind(parent), CONNECT_ONE_SHOT)
-
-				_sound_2d_stream_players_priorities[stream_player.get_instance_id()] = priority
 			
 		SoundType.POSITIONAL_3D:
 			if not _available_sound_3d_stream_players.is_empty():
 				stream_player = _available_sound_3d_stream_players.pop_front()
 			else:
-				stream_player = _check_priority_and_find_oldest(_sound_3d_stream_players, _sound_3d_stream_players_priorities, priority)
+				stream_player = _check_priority_and_find_oldest(_sound_3d_stream_players, priority)
 			
 			if stream_player:
 				_remove_connection_tree_exiting(stream_player)
@@ -194,20 +184,19 @@ func play_sound(stream: AudioStream, sound_type: int, parent: Node = null,
 					
 					if not parent.tree_exiting.is_connected(_on_playing_node_with_sound_3d_stream_players_exiting_tree):
 						parent.tree_exiting.connect(_on_playing_node_with_sound_3d_stream_players_exiting_tree.bind(parent), CONNECT_ONE_SHOT)
-
-				_sound_3d_stream_players_priorities[stream_player.get_instance_id()] = priority
 	
 	if stream_player:	
 		stream_player.stream = stream
 		stream_player.volume_db = linear_to_db(volume_db)
 		stream_player.pitch_scale = pitch_scale
+		stream_player.priority = priority
 		stream_player.play()
 	
 	return stream_player
 	
 
 func play_loaded_music(stream_name: String, volume_db: float = 1.0, pitch_scale: float = 1.0,
-		volume_transition_in_duration: float = 0) -> AudioStreamPlayer:
+		volume_transition_in_duration: float = 0) -> MusicStreamPlayer:
 	var stream: AudioStream
 	if _loaded_music_streams.has(stream_name):
 		stream = _loaded_music_streams[stream_name]
@@ -218,7 +207,7 @@ func play_loaded_music(stream_name: String, volume_db: float = 1.0, pitch_scale:
 
 	
 func play_music(stream: AudioStream, volume_db: float = 1.0, pitch_scale: float = 1.0,
-		volume_transition_in_duration: float = 0) -> AudioStreamPlayer:
+		volume_transition_in_duration: float = 0) -> MusicStreamPlayer:
 	if stream == null:
 		return
 			
@@ -232,10 +221,9 @@ func play_music(stream: AudioStream, volume_db: float = 1.0, pitch_scale: float 
 		stream_player.stream = stream
 		stream_player.pitch_scale = pitch_scale
 		
-		_remove_tween_volume_transition(stream_player)
+		stream_player.remove_tween_volume_transition()
 		if volume_transition_in_duration > 0:
-			stream_player.volume_db = linear_to_db(-50)
-			create_volume_transition_in(stream_player, volume_db, volume_transition_in_duration)
+			stream_player.create_tween_volume_transition_in(volume_db, volume_transition_in_duration)
 		else:
 			stream_player.volume_db = linear_to_db(volume_db)
 			
@@ -246,59 +234,41 @@ func play_music(stream: AudioStream, volume_db: float = 1.0, pitch_scale: float 
 	
 func stop_sound(stream_player: Node) -> void:
 	if stream_player:
-		if stream_player is AudioStreamPlayer:
+		if stream_player is SoundStreamPlayer:
 			_stop_sound_stream_player(stream_player)
 			
-		elif stream_player is AudioStreamPlayer2D:
+		elif stream_player is SoundStreamPlayer2D:
 			_stop_sound_2d_stream_player(stream_player)
 			
-		elif stream_player is AudioStreamPlayer3D:
+		elif stream_player is SoundStreamPlayer3D:
 			_stop_sound_3d_stream_player(stream_player)
 	
 
 func stop_music(stream_player: Node, volume_transition_out_duration: float = 0) -> void:
-	_remove_tween_volume_transition(stream_player)
+	stream_player.remove_tween_volume_transition()
 	if volume_transition_out_duration > 0:
-		var tween = create_volume_transition_out(stream_player, volume_transition_out_duration)
+		var tween: Tween = stream_player.create_tween_volume_transition_out(volume_transition_out_duration)
 		await tween.finished
 
 	_stop_music_stream_player(stream_player)
 	
 	
-func create_volume_transition_in(stream_player: Node, volume_db: float, duration: float) -> Tween:
-	var tween := stream_player.create_tween()
-	tween.tween_property(stream_player, "volume_db", linear_to_db(volume_db), duration).from(-50.0)
-	tween.finished.connect(_remove_tween_volume_transition.bind(stream_player))
-	_stream_players_tween_volume_transition[stream_player.get_instance_id()] = tween
-	
-	return tween
-	
-	
-func create_volume_transition_out(stream_player: Node, duration: float) -> Tween:
-	var tween := stream_player.create_tween()
-	tween.tween_property(stream_player, "volume_db", -50.0, duration)
-	tween.finished.connect(_remove_tween_volume_transition.bind(stream_player))
-	_stream_players_tween_volume_transition[stream_player.get_instance_id()] = tween
-	
-	return tween
-	
-	
-func _stop_sound_stream_player(stream_player: AudioStreamPlayer) -> void:
+func _stop_sound_stream_player(stream_player: SoundStreamPlayer) -> void:
 	stream_player.stop()
 	_on_sound_stream_player_finished(stream_player)
 	
 	
-func _stop_sound_2d_stream_player(stream_player: AudioStreamPlayer2D) -> void:
+func _stop_sound_2d_stream_player(stream_player: SoundStreamPlayer2D) -> void:
 	stream_player.stop()
 	_on_sound_2d_stream_player_finished(stream_player)
 	
 	
-func _stop_sound_3d_stream_player(stream_player: AudioStreamPlayer3D) -> void:
+func _stop_sound_3d_stream_player(stream_player: SoundStreamPlayer3D) -> void:
 	stream_player.stop()
 	_on_sound_3d_stream_player_finished(stream_player)
 	
 	
-func _stop_music_stream_player(stream_player: AudioStreamPlayer) -> void:
+func _stop_music_stream_player(stream_player: MusicStreamPlayer) -> void:
 	stream_player.stop()
 	_on_music_stream_player_finished(stream_player)
 	
@@ -347,7 +317,7 @@ func _update_music_channels(count: int) -> void:
 	var music_stream_players_count := _music_stream_players.size()
 	if count > music_stream_players_count:
 		for i in count - music_stream_players_count:
-			var stream_player := AudioStreamPlayer.new()
+			var stream_player := MusicStreamPlayer.new()
 			stream_player.bus = MUSIC_BUS_NAME
 			stream_player.finished.connect(_on_music_stream_player_finished.bind(stream_player))
 			music_root.add_child(stream_player)
@@ -356,7 +326,7 @@ func _update_music_channels(count: int) -> void:
 			
 	elif count < music_stream_players_count:
 		for i in range(count, music_stream_players_count):
-			var stream_player: AudioStreamPlayer
+			var stream_player: MusicStreamPlayer
 			if not _available_music_stream_players.is_empty():
 				stream_player = _available_music_stream_players.pop_front()
 			else:
@@ -364,7 +334,6 @@ func _update_music_channels(count: int) -> void:
 				
 			if stream_player:
 				var stream_player_id := stream_player.get_instance_id()
-				_remove_tween_volume_transition(stream_player)
 				_music_stream_players.erase(stream_player_id)
 				stream_player.queue_free()
 	
@@ -376,7 +345,7 @@ func _update_sound_channels(count: int) -> void:
 	var sound_stream_players_count := _sound_stream_players.size()
 	if count > sound_stream_players_count:
 		for i in count - sound_stream_players_count:
-			var stream_player := AudioStreamPlayer.new()
+			var stream_player := SoundStreamPlayer.new()
 			stream_player.bus = SOUND_BUS_NAME
 			stream_player.finished.connect(_on_sound_stream_player_finished.bind(stream_player))
 			sound_root.add_child(stream_player)
@@ -385,19 +354,16 @@ func _update_sound_channels(count: int) -> void:
 			
 	elif count < sound_stream_players_count:
 		for i in range(count, sound_stream_players_count):
-			var stream_player: AudioStreamPlayer
+			var stream_player: SoundStreamPlayer
 			if not _available_sound_stream_players.is_empty():
 				stream_player = _available_sound_stream_players.pop_front()
 			else:
-				stream_player = _check_priority_and_find_oldest(_sound_stream_players ,_sound_stream_players_priorities, 9999)
+				stream_player = _check_priority_and_find_oldest(_sound_stream_players ,9999)
 				
 			if stream_player:
 				var stream_player_id := stream_player.get_instance_id()
 				_sound_stream_players.erase(stream_player_id)
 				stream_player.queue_free()
-				
-				if _sound_stream_players_priorities.has(stream_player_id):
-					_sound_stream_players_priorities.erase(stream_player_id)
 					
 					
 func _update_sound_2d_channels(count: int) -> void:
@@ -407,7 +373,7 @@ func _update_sound_2d_channels(count: int) -> void:
 	var sound_2d_stream_players_count := _sound_2d_stream_players.size()
 	if count > sound_2d_stream_players_count:
 		for i in count - sound_2d_stream_players_count:
-			var stream_player := AudioStreamPlayer2D.new()
+			var stream_player := SoundStreamPlayer2D.new()
 			stream_player.bus = SOUND_BUS_NAME
 			stream_player.finished.connect(_on_sound_2d_stream_player_finished.bind(stream_player))
 			sound_2d_root.add_child(stream_player)
@@ -416,20 +382,17 @@ func _update_sound_2d_channels(count: int) -> void:
 			
 	elif count < sound_2d_stream_players_count:
 		for i in range(count, sound_2d_stream_players_count):
-			var stream_player: AudioStreamPlayer2D
+			var stream_player: SoundStreamPlayer2D
 			if not _available_sound_2d_stream_players.is_empty():
 				stream_player = _available_sound_2d_stream_players.pop_front()
 			else:
-				stream_player = _check_priority_and_find_oldest(_sound_2d_stream_players, _sound_2d_stream_players_priorities, 9999)
+				stream_player = _check_priority_and_find_oldest(_sound_2d_stream_players, 9999)
 				
 			if stream_player:
 				var stream_player_id := stream_player.get_instance_id()
 				_remove_connection_tree_exiting(stream_player)
 				_sound_2d_stream_players.erase(stream_player_id)
 				stream_player.queue_free()
-				
-				if _sound_2d_stream_players_priorities.has(stream_player_id):
-					_sound_2d_stream_players_priorities.erase(stream_player_id)
 					
 					
 func _update_sound_3d_channels(count: int) -> void:
@@ -439,7 +402,7 @@ func _update_sound_3d_channels(count: int) -> void:
 	var sound_3d_stream_players_count := _sound_3d_stream_players.size()
 	if count > sound_3d_stream_players_count:
 		for i in count - sound_3d_stream_players_count:
-			var stream_player := AudioStreamPlayer3D.new()
+			var stream_player := SoundStreamPlayer3D.new()
 			stream_player.bus = SOUND_BUS_NAME
 			stream_player.finished.connect(_on_sound_3d_stream_player_finished.bind(stream_player))
 			sound_3d_root.add_child(stream_player)
@@ -448,20 +411,17 @@ func _update_sound_3d_channels(count: int) -> void:
 			
 	elif count < sound_3d_stream_players_count:
 		for i in range(count, sound_3d_stream_players_count):
-			var stream_player: AudioStreamPlayer3D
+			var stream_player: SoundStreamPlayer3D
 			if not _available_sound_3d_stream_players.is_empty():
 				stream_player = _available_sound_3d_stream_players.pop_front()
 			else:
-				stream_player = _check_priority_and_find_oldest(_sound_3d_stream_players, _sound_3d_stream_players_priorities, 9999)
+				stream_player = _check_priority_and_find_oldest(_sound_3d_stream_players, 9999)
 				
 			if stream_player:
 				var stream_player_id := stream_player.get_instance_id()
 				_remove_connection_tree_exiting(stream_player)
 				_sound_3d_stream_players.erase(stream_player_id)
 				stream_player.queue_free()
-				
-				if _sound_3d_stream_players_priorities.has(stream_player_id):
-					_sound_3d_stream_players_priorities.erase(stream_player_id)
 					
 					
 func _update_music_filenames(p_music_dir_path: String) -> void:
@@ -498,16 +458,6 @@ func _remove_connection_tree_exiting(stream_player: Node) -> bool:
 						removed_connection = true
 	
 	return removed_connection
-	
-	
-func _remove_tween_volume_transition(stream_player: Node) -> void:
-	if stream_player:
-		var stream_player_id := stream_player.get_instance_id()
-		if _stream_players_tween_volume_transition.has(stream_player_id):
-			var tween := _stream_players_tween_volume_transition[stream_player_id] as Tween
-			if tween and tween.is_valid():
-				tween.kill()
-			_stream_players_tween_volume_transition.erase(stream_player_id)
 	
 	
 func _get_filenames(dir_path: String) -> Array:
@@ -561,13 +511,13 @@ func _get_filename(audio_type: int, audio_name: String) -> String:
 	return file_name
 
 
-func _check_priority_and_find_oldest(stream_players: Dictionary, priorities: Dictionary, priority: int) -> Node:
+func _check_priority_and_find_oldest(stream_players: Dictionary, priority: int) -> Node:
 	if stream_players.is_empty():
 		return null
 	
 	var lowest_priority_stream_players := {}
-	for id in priorities:
-		if priority >= priorities[id]:
+	for id in stream_players:
+		if priority >= stream_players[id].priority:
 			lowest_priority_stream_players[id] = stream_players[id]
 
 	return _find_oldest(lowest_priority_stream_players)
@@ -609,7 +559,6 @@ func _on_playing_node_with_sound_3d_stream_players_exiting_tree(node: Node) -> v
 			
 func _on_sound_stream_player_finished(stream_player):
 	if stream_player:
-		_sound_stream_players_priorities.erase(stream_player.get_instance_id())
 		_available_sound_stream_players.append(stream_player)
 	
 	
@@ -618,7 +567,6 @@ func _on_sound_2d_stream_player_finished(stream_player):
 		_remove_connection_tree_exiting(stream_player)
 		stream_player.get_parent().remove_child(stream_player)
 		sound_2d_root.add_child(stream_player)
-		_sound_2d_stream_players_priorities.erase(stream_player.get_instance_id())
 		_available_sound_2d_stream_players.append(stream_player)
 	
 	
@@ -627,7 +575,6 @@ func _on_sound_3d_stream_player_finished(stream_player):
 		_remove_connection_tree_exiting(stream_player)
 		stream_player.get_parent().remove_child(stream_player)
 		sound_3d_root.add_child(stream_player)
-		_sound_3d_stream_players_priorities.erase(stream_player.get_instance_id())
 		_available_sound_3d_stream_players.append(stream_player)
 	
 	
