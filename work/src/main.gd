@@ -1,21 +1,21 @@
 extends Node
 
-var _sound_stream_player_1: AudioStreamPlayer
-var _sound_stream_player_2: AudioStreamPlayer
-var _sound_stream_player_3: AudioStreamPlayer
-var _music_stream_player_1: AudioStreamPlayer
+var _sound_stream_player_1: SoundStreamPlayer
+var _sound_stream_player_2: SoundStreamPlayer
+var _sound_stream_player_3: SoundStreamPlayer
+var _music_stream_player_1: MusicStreamPlayer
 
 @onready var sound_channel_count_label = $SoundChannelCountLabel
 
 
 func _ready():
-	var sounds = [
+	var sounds: Array[String] = [
 		"blip",
 		"confirmation",
 		"laser"
 	]
 	
-	var music = [
+	var music: Array[String] = [
 		"bgm",
 		"rain"
 	]

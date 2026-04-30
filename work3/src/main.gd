@@ -1,10 +1,10 @@
 extends Node
 
-var _sound_stream_player_1: AudioStreamPlayer3D
-var _sound_stream_player_2: AudioStreamPlayer3D
-var _sound_stream_player_3: AudioStreamPlayer3D
-var _music_stream_player_1: AudioStreamPlayer
-var _music_stream_player_2: AudioStreamPlayer
+var _sound_stream_player_1: SoundStreamPlayer3D
+var _sound_stream_player_2: SoundStreamPlayer3D
+var _sound_stream_player_3: SoundStreamPlayer3D
+var _music_stream_player_1: MusicStreamPlayer
+var _music_stream_player_2: MusicStreamPlayer
 
 @onready var actor_1 = $Actor1
 @onready var actor_2 = $Actor2
@@ -212,19 +212,22 @@ func _input(event):
 	if event is InputEventKey and !event.is_echo():
 		if event.pressed:
 			if !event.shift_pressed and event.keycode == KEY_1:
-				_sound_stream_player_1 = AudioManager.play_sound(preload("res://assets/sound/blip.wav"), AudioManager.SoundType.POSITIONAL_3D, actor_1)
-#				_sound_stream_player_1.attenuation_filter_db = 0
-#				_sound_stream_player_1.unit_size = 10
+				if actor_1:
+					_sound_stream_player_1 = AudioManager.play_sound(preload("res://assets/sound/blip.wav"), AudioManager.SoundType.POSITIONAL_3D, actor_1)
+					#_sound_stream_player_1.attenuation_filter_db = 0
+					#_sound_stream_player_1.unit_size = 10
 
 			elif !event.shift_pressed and event.keycode == KEY_2:
-				_sound_stream_player_2 = AudioManager.play_sound(preload("res://assets/sound/confirmation.ogg"), AudioManager.SoundType.POSITIONAL_3D, actor_2)
-#				_sound_stream_player_2.attenuation_filter_db = 0
-#				_sound_stream_player_2.unit_size = 10
+				if actor_2:
+					_sound_stream_player_2 = AudioManager.play_sound(preload("res://assets/sound/confirmation.ogg"), AudioManager.SoundType.POSITIONAL_3D, actor_2)
+					#_sound_stream_player_2.attenuation_filter_db = 0
+					#_sound_stream_player_2.unit_size = 10
 
 			elif !event.shift_pressed and event.keycode == KEY_3:
-				_sound_stream_player_3 = AudioManager.play_sound(preload("res://assets/sound/laser.ogg"), AudioManager.SoundType.POSITIONAL_3D, actor_3)
-#				_sound_stream_player_3.attenuation_filter_db = 0
-#				_sound_stream_player_3.unit_size = 10
+				if actor_3:
+					_sound_stream_player_3 = AudioManager.play_sound(preload("res://assets/sound/laser.ogg"), AudioManager.SoundType.POSITIONAL_3D, actor_3)
+					#_sound_stream_player_3.attenuation_filter_db = 0
+					#_sound_stream_player_3.unit_size = 10
 				
 			elif event.shift_pressed and event.keycode == KEY_1:
 				AudioManager.stop_sound(_sound_stream_player_1)
