@@ -1251,35 +1251,35 @@ func _on_playing_node_with_sound_3d_stream_players_exiting_tree(node: Node) -> v
 		while arr.size() > 0:
 			_stop_sound_3d_stream_player(arr[0])
 
-func _on_sound_stream_player_finished(stream_player: SoundStreamPlayer) -> void:
+func _on_sound_stream_player_finished(stream_player: AudioStreamPlayer) -> void:
 	if stream_player:
 		var stream_name := _get_stream_name(stream_player.stream)
-		any_sound_finished.emit(stream_player, SoundType.NON_POSITIONAL, stream_name)
 		_sound_stream_players_priorities.erase(stream_player.get_instance_id())
 		_available_sound_stream_players.append(stream_player)
+		any_sound_finished.emit(stream_player, SoundType.NON_POSITIONAL, stream_name)
 
-func _on_sound_2d_stream_player_finished(stream_player: SoundStreamPlayer2D) -> void:
+func _on_sound_2d_stream_player_finished(stream_player: AudioStreamPlayer2D) -> void:
 	if stream_player:
 		var stream_name := _get_stream_name(stream_player.stream)
-		any_sound_finished.emit(stream_player, SoundType.POSITIONAL_2D, stream_name)
 		_remove_connection_tree_exiting(stream_player)
 		stream_player.get_parent().remove_child(stream_player)
 		sound_2d_root.add_child(stream_player)
 		_sound_2d_stream_players_priorities.erase(stream_player.get_instance_id())
 		_available_sound_2d_stream_players.append(stream_player)
+		any_sound_finished.emit(stream_player, SoundType.POSITIONAL_2D, stream_name)
 
-func _on_sound_3d_stream_player_finished(stream_player: SoundStreamPlayer3D) -> void:
+func _on_sound_3d_stream_player_finished(stream_player: AudioStreamPlayer3D) -> void:
 	if stream_player:
 		var stream_name := _get_stream_name(stream_player.stream)
-		any_sound_finished.emit(stream_player, SoundType.POSITIONAL_3D, stream_name)
 		_remove_connection_tree_exiting(stream_player)
 		stream_player.get_parent().remove_child(stream_player)
 		sound_3d_root.add_child(stream_player)
 		_sound_3d_stream_players_priorities.erase(stream_player.get_instance_id())
 		_available_sound_3d_stream_players.append(stream_player)
+		any_sound_finished.emit(stream_player, SoundType.POSITIONAL_3D, stream_name)
 
-func _on_music_stream_player_finished(stream_player: MusicStreamPlayer) -> void:
+func _on_music_stream_player_finished(stream_player: AudioStreamPlayer) -> void:
 	if stream_player:
 		var stream_name := _get_stream_name(stream_player.stream)
-		any_music_finished.emit(stream_player, stream_name)
 		_available_music_stream_players.append(stream_player)
+		any_music_finished.emit(stream_player, stream_name)
