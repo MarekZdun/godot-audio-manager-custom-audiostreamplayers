@@ -398,7 +398,7 @@ func play_sound(stream: AudioStream, sound_type: SoundType, parent: Node = null,
 ## Finds existing non-positional player with same stream and available polyphony.
 func _find_existing_non_positional_player(stream: AudioStream) -> SoundStreamPlayer:
 	for player in _sound_stream_players.values():
-		if is_instance_valid(player) and player.stream == stream and player.max_polyphony > 1:
+		if is_instance_valid(player) and player.playing and player.stream == stream and player.max_polyphony > 1:
 			return player
 	return null
 
@@ -406,7 +406,7 @@ func _find_existing_non_positional_player(stream: AudioStream) -> SoundStreamPla
 func _find_existing_2d_player_on_parent(parent: Node, stream: AudioStream) -> SoundStreamPlayer2D:
 	for player in _sound_2d_stream_players.values():
 		if is_instance_valid(player) and player.get_parent() == parent:
-			if player.stream == stream and player.max_polyphony > 1:
+			if player.playing and player.stream == stream and player.max_polyphony > 1:
 				return player
 	return null
 
@@ -414,7 +414,7 @@ func _find_existing_2d_player_on_parent(parent: Node, stream: AudioStream) -> So
 func _find_existing_3d_player_on_parent(parent: Node, stream: AudioStream) -> SoundStreamPlayer3D:
 	for player in _sound_3d_stream_players.values():
 		if is_instance_valid(player) and player.get_parent() == parent:
-			if player.stream == stream and player.max_polyphony > 1:
+			if player.playing and player.stream == stream and player.max_polyphony > 1:
 				return player
 	return null
 
